@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Chat Example</title>
+<script type="text/javascript">
+window.onload = function () {
+    const cookieName = "chatUser";
+
+    function createCookie(name,value,days) {
+        if (days) {
+            var date = new Date();
+            date.setTime(date.getTime()+(days*24*60*60*1000));
+            var expires = "; expires="+date.toGMTString();
+        }
+        else var expires = "";
+        document.cookie = name+"="+value+expires+"; path=/";
+    }
+
+    function readCookie(name) {
+        var nameEQ = name + "=";
+        var ca = document.cookie.split(';');
+        for(var i=0;i < ca.length;i++) {
+            var c = ca[i];
+            while (c.charAt(0)==' ') c = c.substring(1,c.length);
+            if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+        }
+        return null;
+    }
+
+    var tag = document.getElementById("tag");
+
+    var username = readCookie(cookieName);
+
+    if (!username) {
+        do {
+            username = prompt("Please enter your name", "12 max");
+
+        } while (username == "12 max" || !username);
+        username = username.substring(0, 12);
+
+        createCookie(cookieName, username);
+    }
+
+    tag.value = username;
+
+    var conn;
+    var msg = document.getElementById("msg");
+    var log = document.getElementById("log");
+    var chat = document.getElementById("chat");
+
+    function appendLog(item) {
+        var doScroll = log.scrollTop === log.scrollHeight - log.clientHeight;
+        log.appendChild(item);
+        if (doScroll) {
+            log.scrollTop = log.scrollHeight - log.clientHeight;
+        }
+    }
+
+    chat.onsubmit = function () {
+        if (!conn) {
+            return false;
+        }
+        if (!msg.value) {
+            return false;
+        }
+        conn.send(username + "\n" + msg.value);
+        msg.value = "";
+        return false;
+    };
+
+    if (window["WebSocket"]) {
+        conn = new WebSocket("ws://{{$}}/ws");
+        conn.onclose = function (evt) {
+            var item = document.createElement("div");
+            item.innerHTML = "<b>Connection closed.</b>";
+            appendLog(item);
+        };
+        conn.onmessage = function (evt) {
+            var messages = evt.data.split('\n');
+            for (var i = 0; i < messages.length; i++) {
+                var item = document.createElement("div");
+                item.innerText = messages[i];
+                appendLog(item);
+            }
+        };
+    } else {
+        var item = document.createElement("div");
+        item.innerHTML = "<b>Your browser does not support WebSockets.</b>";
+        appendLog(item);
+    }
+};
+</script>
+<style type="text/css">
+html {
+    overflow: hidden;
+}
+
+body {
+    overflow: hidden;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    background: gray;
+}
+
+#log {
+    background: white;
+    margin: 0;
+    padding: 0.5em 0.5em 0.5em 0.5em;
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    bottom: 95px;
+    overflow: auto;
+}
+
+#chatarea {
+    padding: 0 0.5em 0 0.5em;
+    margin: 0;
+    position: absolute;
+    bottom: 90px;
+    left: 0px;
+    width: 100%;
+    overflow: visible;
+}
+
+#chat {
+    position: relative;
+}
+
+#tag {
+    position: absolute;
+    left:1px;
+    top:1px;
+    text-align: center;
+    background: #2196F3;
+    color: white;
+    border:none;
+    width:131px;
+    height: 17px;
+    font-weight: bolder;
+}
+#sendbutton {
+    -webkit-appearance: none;
+    position: absolute;
+    left:1px;
+    top:22px;
+    width:131px;
+    height: 34px;
+    background: #2196F3;
+    color: white;
+    border:none;
+    font-size: 14px;
+    font-weight: bolder;
+}
+#msg {
+    position: absolute;
+    left:134px;
+    height: 51px;
+}
+
+</style>
+</head>
+<body>
+<div id="log"></div>
+<div id="chatarea">
+    <form id="chat">
+        <input id="sendbutton" type="submit" value="Send" />
+        <input id="tag" type="text" readonly value=""/>
+        <textarea id="msg" cols="94" rows="4" spellcheck="true" maxlength="499"></textarea>
+    </form>
+</div>
+</body>
+</html>
