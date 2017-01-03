@@ -3,33 +3,62 @@
 <head>
 <title>Chat Example</title>
 <script type="text/javascript">
-window.onload = function () {
-    const cookieName = "chatUser";
+const cookieName = "chatUser";
+var conn;
+var msg ;
+var log ;
+var chat ;
+var username = readCookie(cookieName);
 
-    function createCookie(name,value,days) {
-        if (days) {
-            var date = new Date();
-            date.setTime(date.getTime()+(days*24*60*60*1000));
-            var expires = "; expires="+date.toGMTString();
-        }
-        else var expires = "";
-        document.cookie = name+"="+value+expires+"; path=/";
+function createCookie(name,value,days) {
+    if (days) {
+        var date = new Date();
+        date.setTime(date.getTime()+(days*24*60*60*1000));
+        var expires = "; expires="+date.toGMTString();
     }
+    else var expires = "";
+    document.cookie = name+"="+value+expires+"; path=/";
+}
 
-    function readCookie(name) {
-        var nameEQ = name + "=";
-        var ca = document.cookie.split(';');
-        for(var i=0;i < ca.length;i++) {
-            var c = ca[i];
-            while (c.charAt(0)==' ') c = c.substring(1,c.length);
-            if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
-        }
-        return null;
+function readCookie(name) {
+    var nameEQ = name + "=";
+    var ca = document.cookie.split(';');
+    for(var i=0;i < ca.length;i++) {
+        var c = ca[i];
+        while (c.charAt(0)==' ') c = c.substring(1,c.length);
+        if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
     }
+    return null;
+}
+
+// Handler used by the JS action event handler.  Returns nothing - seems ok in FF
+function submitHandler() {
+
+    if (!conn) {
+        console.log("No websocket");
+        return ;
+    }
+    if (!msg.value) {
+        console.log("No msg");
+        return ;
+    }
+    conn.send("^" + username + "\n" + msg.value);
+    msg.value = "";
+};
+// if the event handler is called from the form submit you need to return false...
+function submitWrapper() {
+    submitHandler();
+    return false;
+}
+
+
+function app() {
+    msg = document.getElementById("msg");
+    log = document.getElementById("log");
+    chat = document.getElementById("chat");
 
     var tag = document.getElementById("tag");
 
-    var username = readCookie(cookieName);
 
     if (!username) {
         do {
@@ -43,10 +72,6 @@ window.onload = function () {
 
     tag.value = username;
 
-    var conn;
-    var msg = document.getElementById("msg");
-    var log = document.getElementById("log");
-    var chat = document.getElementById("chat");
 
     function appendLog(item) {
         var doScroll = log.scrollTop === log.scrollHeight - log.clientHeight;
@@ -56,17 +81,15 @@ window.onload = function () {
         }
     }
 
-    chat.onsubmit = function () {
-        if (!conn) {
-            return false;
-        }
-        if (!msg.value) {
-            return false;
-        }
-        conn.send(username + "\n" + msg.value);
-        msg.value = "";
-        return false;
-    };
+    msg.addEventListener('keydown', function(e) {
+        if(e.keyCode == 13 && (e.metaKey || e.ctrlKey)) {
+                chat.submit();
+            }
+    });
+
+    chat.onsubmit = submitWrapper;
+    chat.setAttribute('action', 'javascript:submitHandler();');
+
 
     if (window["WebSocket"]) {
         conn = new WebSocket("ws://{{$}}/ws");
@@ -79,7 +102,13 @@ window.onload = function () {
             var messages = evt.data.split('\n');
             for (var i = 0; i < messages.length; i++) {
                 var item = document.createElement("div");
-                item.innerText = messages[i];
+                if (messages[i][0] != '^') {
+                    item.className = "msglog";
+                    item.innerText = messages[i];
+                } else {
+                    item.className = "author";
+                    item.innerHTML = messages[i].substring(1);
+                }
                 appendLog(item);
             }
         };
@@ -89,6 +118,7 @@ window.onload = function () {
         appendLog(item);
     }
 };
+window.onload = app;
 </script>
 <style type="text/css">
 html {
@@ -114,6 +144,13 @@ body {
     right: 10px;
     bottom: 95px;
     overflow: auto;
+}
+
+.msglog {
+    padding-left:2em
+}
+.author {
+    font-weight: bolder;
 }
 
 #chatarea {
@@ -179,7 +216,7 @@ button::-moz-focus-inner {
 <body>
 <div id="log"></div>
 <div id="chatarea">
-    <form id="chat">
+    <form id="chat" >
         <input id="tag" type="text" readonly value=""/>
         <input id="sendbutton" type="submit" value="Send" />
         <div id="msg-area">
